@@ -265,7 +265,10 @@ export const BCHToolbox = (
     validateAddress,
     createKeysForPath,
     getAddressFromKeys,
-    buildBCHTx: (params: UTXOBuildTxParams) => buildBCHTx({ ...params, apiClient }),
+    buildBCHTx: (
+      params: UTXOBuildTxParams,
+    ): Promise<{ builder: TransactionBuilderType; utxos: UTXO[] }> =>
+      buildBCHTx({ ...params, apiClient }),
     buildTx: (params: UTXOBuildTxParams) => buildTx({ ...params, apiClient }),
     transfer: (
       params: UTXOWalletTransferParams<
@@ -275,4 +278,23 @@ export const BCHToolbox = (
     ) => transfer({ ...params, apiClient }),
     getBalance: (address: string) => getBalance(stripPrefix(toCashAddress(address))),
   };
+};
+
+export type BCHToolboxType = Omit<
+  ReturnType<typeof BaseUTXOToolbox>,
+  'transfer' | 'createKeysForPath' | 'getAddressFromKeys'
+> & {
+  stripPrefix: typeof stripPrefix;
+  validateAddress: typeof validateAddress;
+  createKeysForPath: typeof createKeysForPath;
+  getAddressFromKeys: typeof getAddressFromKeys;
+  buildBCHTx: (
+    params: UTXOBuildTxParams,
+  ) => Promise<{ builder: TransactionBuilderType; utxos: UTXO[] }>;
+  transfer: (
+    params: UTXOWalletTransferParams<
+      { builder: TransactionBuilderType; utxos: UTXO[] },
+      TransactionType
+    >,
+  ) => Promise<string>;
 };
