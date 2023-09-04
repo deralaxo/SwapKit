@@ -3,7 +3,7 @@ import { isBytesLike } from '@ethersproject/bytes';
 import { formatUnits } from '@ethersproject/units';
 import { Denomination } from '@thorswap-lib/types';
 
-export type Numberish = BigNumberish | SwapkitNumber;
+export type Numberish = BigNumberish | SwapkitNumber | BigInt;
 
 /*
  * SwapkitNumber is a wrapper around BigNumber that stores the asset denominated
@@ -15,10 +15,20 @@ export class SwapkitNumber {
   decimals: number;
   readonly _isSwapkitNumber = true;
 
-  constructor(value: Numberish | undefined, decimals?: number, valueDenomination?: Denomination) {
+  constructor({
+    value,
+    decimals,
+    valueDenomination,
+  }: {
+    value?: Numberish;
+    decimals?: number;
+    valueDenomination?: Denomination;
+  }) {
+    const newDecimals = decimals;
+
     if (value instanceof SwapkitNumber) {
       this.value = value.value;
-      this.decimals = value.decimals;
+      this.decimals = newDecimals || value.decimals;
       return;
     }
 
@@ -27,8 +37,16 @@ export class SwapkitNumber {
       SwapkitNumber.isBaseDenominated(value, true) ||
       value instanceof BigNumber
     ) {
-      this.decimals = decimals || 18;
+      this.decimals = newDecimals || 18;
       this.value = formatUnits(BigNumber.from(value), this.decimals);
+      return;
+    }
+
+    if (value instanceof BigInt) {
+      this.decimals = decimals || 18;
+
+      //TODO adapt to BigInt
+      this.value = BigInt(value.toString()).toString();
       return;
     }
 
@@ -117,7 +135,7 @@ export class SwapkitNumber {
     return new SwapkitNumber(result.replace(/\.?0+$/, ''));
   }
 
-  e(value: Numberish | undefined, decimals?: number, denomination?: Denomination) {
+  eq(value: Numberish | undefined, decimals?: number, denomination?: Denomination) {
     const numberToEq = SwapkitNumber.from(value, decimals, denomination);
     const newDecimals = Math.max(numberToEq.decimals, this.decimals);
     const baseValue = parseFixed(this.value, newDecimals);
@@ -155,6 +173,17 @@ export class SwapkitNumber {
     const baseValue = parseFixed(this.value, newDecimals);
 
     return baseValue.lte(parseFixed(numberToLte.value, newDecimals));
+  }
+
+  toSignificant(
+    significantDigits = 8,
+    maxDecimals = 8,
+    format: BigNumber.Format = BN_FORMAT,
+    rounding: Rounding = Rounding.ROUND_DOWN,
+  ) {
+    return this.toSignificantBigNumber(significantDigits, format, rounding)
+      .decimalPlaces(maxDecimals)
+      .toFormat();
   }
 
   static isBaseDenominated(value: Numberish | undefined, strict: boolean = false) {
